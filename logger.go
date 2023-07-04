@@ -6,7 +6,6 @@ import (
 	"io"
 	"math/rand"
 	"os"
-	"sync"
 	"time"
 )
 
@@ -20,7 +19,6 @@ type Logger struct {
 	out              io.Writer
 	inflightContexts map[int64][]*Entry
 	randSource       rand.Source
-	lock             sync.Locker
 	fullDefer        bool
 }
 
@@ -31,7 +29,6 @@ func NewLogger() *Logger {
 		out:              os.Stdout,
 		inflightContexts: make(map[int64][]*Entry),
 		randSource:       rand.NewSource(time.Now().Unix()),
-		lock:             &sync.Mutex{},
 		fullDefer:        false,
 	}
 }
@@ -65,7 +62,7 @@ func (l *Logger) WithFullDefer(fullDefer bool) *Logger {
 }
 
 func (l *Logger) StartTracking(ctx context.Context) context.Context {
-	trackingID := l.generateTrackingID()
+	trackingID := l.randSource.Int63()
 	l.inflightContexts[trackingID] = make([]*Entry, 0)
 	return context.WithValue(ctx, contextKey, trackingID)
 }
@@ -83,14 +80,15 @@ func (l *Logger) EndTrackingWithError(ctx context.Context, err error) {
 		// Unknown context, ignore
 		return
 	}
-	pendingEntries, found := l.inflightContexts[trackingID]
-	if !found {
-		// Unknown tracking ID, weird, but ignore
-		_, _ = fmt.Fprintf(os.Stderr, "received entry with unknown trackingID: %d\n", trackingID)
-		return
-	}
 
 	if err != nil || l.fullDefer {
+		pendingEntries, found := l.inflightContexts[trackingID]
+		if !found {
+			// Unknown tracking ID, weird, but ignore
+			_, _ = fmt.Fprintf(os.Stderr, "received entry with unknown trackingID: %d\n", trackingID)
+			return
+		}
+
 		var logLevel Level
 		if err != nil {
 			logLevel = l.deferredLevel
@@ -117,7 +115,7 @@ func (l *Logger) WithContext(ctx context.Context) *Entry {
 }
 
 func (l *Logger) deferEntry(e *Entry) {
-	if e.ctx == nil {
+	if e.ctx == nil || l.deferredLevel > e.level {
 		return
 	}
 	trackingID, found := e.ctx.Value(contextKey).(int64)
@@ -133,13 +131,6 @@ func (l *Logger) deferEntry(e *Entry) {
 	}
 
 	l.inflightContexts[trackingID] = append(pendingEntries, e)
-}
-
-func (l *Logger) generateTrackingID() int64 {
-	l.lock.Lock()
-	i := l.randSource.Int63()
-	l.lock.Unlock()
-	return i
 }
 
 func (l *Logger) shouldImmediatelyLog(level Level) bool {

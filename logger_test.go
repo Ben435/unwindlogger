@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/Ben435/unwindlogger"
 )
@@ -71,7 +72,7 @@ func TestLogger_UnwindLogging(t *testing.T) {
 	assert.Contains(t, unwoundWrites, "\"hello\":\"world\"")
 }
 
-func TestLogger_UnwindLoggingWithFullDefer(t *testing.T) {
+func TestLogger_UnwindLoggingWithFullDeferAndWhenEndingTrackingWithError(t *testing.T) {
 	buffer := &bytes.Buffer{}
 	ctx := context.Background()
 	err := fmt.Errorf("bad error")
@@ -103,4 +104,36 @@ func TestLogger_UnwindLoggingWithFullDefer(t *testing.T) {
 
 	assert.Contains(t, unwoundWrites, "error message!")
 	assert.Contains(t, unwoundWrites, "\"error\":\"bad error\"")
+}
+
+func TestLogger_UnwindLoggingWithFullDeferAndWhenEndingTrackingWithoutError(t *testing.T) {
+	buffer := &bytes.Buffer{}
+	ctx := context.Background()
+
+	l := unwindlogger.NewLogger().
+		WithImmediateLevel(unwindlogger.WARN).
+		WithDeferredLevel(unwindlogger.INFO).
+		WithFullDefer(true).
+		WithOut(buffer)
+
+	ctx = l.StartTracking(ctx)
+
+	l.WithContext(ctx).Debug("debug message!")
+	l.WithContext(ctx).WithField("hello", "world").Info("info message!")
+	l.WithContext(ctx).Warn("warn message!")
+	l.WithContext(ctx).Error("error message!")
+
+	immediateWrites := buffer.String()
+	assert.Empty(t, immediateWrites)
+
+	l.EndTracking(ctx)
+	unwoundWrites := buffer.String()
+	assert.NotContains(t, unwoundWrites, "debug message!")
+
+	assert.NotContains(t, unwoundWrites, "info message!")
+	assert.NotContains(t, unwoundWrites, "\"hello\":\"world\"")
+
+	assert.Contains(t, unwoundWrites, "warn message!")
+
+	assert.Contains(t, unwoundWrites, "error message!")
 }
