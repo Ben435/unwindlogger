@@ -13,7 +13,7 @@ func TestLogger_EndTrackingShouldDropEntries(t *testing.T) {
 	ctx := context.Background()
 	ctx = logger.StartTracking(ctx)
 
-	assert.Len(t, logger.inflightTrackingIDs, initialEntries)
+	assert.Len(t, logger.inflightTrackingIDs, initialTrackingEntriesCapacity)
 	assert.Len(t, logger.inflightTrackingIDs[0], 0)
 
 	logger.WithContext(ctx).WithField("hello", "world").Info("hello")
@@ -22,6 +22,6 @@ func TestLogger_EndTrackingShouldDropEntries(t *testing.T) {
 	assert.Len(t, logger.inflightTrackingIDs[0], 1)
 
 	logger.EndTracking(ctx)
-	assert.Len(t, logger.inflightTrackingIDs, initialEntries) // Retain capacity
-	assert.Len(t, logger.inflightTrackingIDs[0], 0)           // But drop the inflight items
+	assert.Len(t, logger.inflightTrackingIDs, initialTrackingEntriesCapacity) // Retain capacity
+	assert.Len(t, logger.inflightTrackingIDs[0], 0)                           // But drop the inflight items
 }

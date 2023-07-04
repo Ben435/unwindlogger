@@ -22,14 +22,14 @@ type Logger struct {
 }
 
 const initialIDs = 10
-const initialEntries = 10
+const initialTrackingEntriesCapacity = 10
 
 func NewLogger() *Logger {
 	inflightTrackingIDs := make([][]*Entry, initialIDs)
 	trackingIDPool := &sync.Pool{}
 
 	for i := 0; i < initialIDs; i++ {
-		inflightTrackingIDs[i] = make([]*Entry, 0, initialEntries)
+		inflightTrackingIDs[i] = make([]*Entry, 0, initialTrackingEntriesCapacity)
 		trackingIDPool.Put(i)
 	}
 
