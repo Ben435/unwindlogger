@@ -1,12 +1,17 @@
 package unwindlogger_test
 
 import (
+	"fmt"
 	"testing"
-	"unwindlogger"
+
+	"github.com/Ben435/unwindlogger"
 )
 
 func TestLogger(t *testing.T) {
-	l := unwindlogger.NewLogger()
+	l := unwindlogger.NewLogger().WithLevel(unwindlogger.DEBUG)
 
-	l.WithField("hello", "world").Debug("the message!")
+	l.WithField("hello", "world").Debug("debug message!")
+	l.Info("info message!")
+	l.Warn("the message!")
+	l.WithError(fmt.Errorf("bad error")).Error("error message!")
 }

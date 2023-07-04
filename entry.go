@@ -3,11 +3,13 @@ package unwindlogger
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 )
 
 type Entry struct {
 	logger  *Logger
+	level   Level
 	message string
 	time    time.Time
 	fields  map[string]interface{}
@@ -16,6 +18,7 @@ type Entry struct {
 func NewEntry(logger *Logger) *Entry {
 	return &Entry{
 		logger:  logger,
+		level:   0,
 		message: "",
 		time:    time.Now(),
 		fields:  make(map[string]interface{}),
@@ -29,13 +32,18 @@ func (e *Entry) WithField(k string, v interface{}) *Entry {
 	return e
 }
 
+func (e *Entry) WithError(err error) *Entry {
+	return e.WithField("error", err.Error())
+}
+
 func (e *Entry) Bytes() ([]byte, error) {
 	data := make(map[string]interface{})
 
 	for k, v := range e.fields {
 		data[k] = v
 	}
-	data["message"] = e.message
+	data["level"] = e.level.Format()
+	data["msg"] = e.message
 	data["time"] = e.time.Format(time.RFC3339)
 
 	b, err := json.Marshal(data)
@@ -43,7 +51,7 @@ func (e *Entry) Bytes() ([]byte, error) {
 		return nil, fmt.Errorf("failed to marshal entry: %w", err)
 	}
 
-	return b, nil
+	return append(b, '\n'), nil
 }
 
 func (e *Entry) String() (string, error) {
@@ -55,12 +63,42 @@ func (e *Entry) String() (string, error) {
 }
 
 func (e *Entry) Debug(msg string) {
-	e.message = msg
+	e.Log(DEBUG, msg)
+}
 
+func (e *Entry) Info(msg string) {
+	e.Log(INFO, msg)
+}
+
+func (e *Entry) Warn(msg string) {
+	e.Log(WARN, msg)
+}
+
+func (e *Entry) Error(msg string) {
+	e.Log(ERROR, msg)
+}
+
+func (e *Entry) Log(level Level, msg string) {
+	if !e.shouldLog(level) {
+		return
+	}
+	e.message = msg
+	e.level = level
+
+	e.write()
+}
+
+func (e *Entry) write() {
 	b, err := e.Bytes()
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("%b", b)
+	if _, err := e.logger.out.Write(b); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "failed to write to log, %v\n", err)
+	}
+}
+
+func (e *Entry) shouldLog(level Level) bool {
+	return e.logger.level < level
 }
