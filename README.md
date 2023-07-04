@@ -27,8 +27,6 @@ That's what this logger intends to do
 
 ## How it works
 
-See [example](./example_test.go) for example usage
-
 Whenever a message with a context is logged, if it is below the
 immediate log level, it is deferred.
 
@@ -87,9 +85,6 @@ as deferring some logs and not others can create out of order logs.
 
 It ain't great, but it's a POC.
 
-Easy improvements possible with better buffer management
-and grouping writes to the out pipe.
-
 ```shell
 $>  go test -bench=BenchmarkLogger -test.benchtime 10s -test.benchmem
 goos: linux
@@ -116,7 +111,7 @@ BenchmarkLogger_MixedLoggingWithError10Logs-16            577330               1
   * Seems about right, but erm, haven't really checked
 * Test how bad out-of-order logs are to log aggregators
   * Eg: Datadog, Splunk, etc.
-  * If they can handle it, `fullDefer` is basically only for file outputs
+  * If they can handle it, `fullDefer` is basically only for file outputs and local runtime
 
 Alternate ideas:
 
