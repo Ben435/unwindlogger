@@ -91,15 +91,16 @@ Easy improvements possible with better buffer management
 and grouping writes to the out pipe.
 
 ```shell
-$> go test -test.benchtime 10s -test.benchmem -test.bench .
+$>  go test -bench=BenchmarkLogger -test.benchtime 10s -test.benchmem
 goos: linux
 goarch: amd64
 pkg: github.com/Ben435/unwindlogger
 cpu: AMD Ryzen 7 1700 Eight-Core Processor          
-BenchmarkLogger_ImmediateLogging-16             17948122               674.4 ns/op          1218 B/op         22 allocs/op
-BenchmarkLogger_DeferredLogging-16              16605958               729.1 ns/op          1226 B/op         23 allocs/op
-BenchmarkLogger_MixedLoggingWithError-16         8963803               1344 ns/op           2260 B/op         43 allocs/op
-BenchmarkLogger_MixedLoggingWithoutError-16     14674735               830.2 ns/op          1355 B/op         26 allocs/op
+BenchmarkLogger_ImmediateLogging-16                     17658039               778.2 ns/op          1236 B/op         21 allocs/op
+BenchmarkLogger_DeferredLogging-16                      15719172               963.0 ns/op          1235 B/op         21 allocs/op
+BenchmarkLogger_MixedLoggingWithError-16                 8281585                1690 ns/op          2275 B/op         41 allocs/op
+BenchmarkLogger_MixedLoggingWithoutError-16             13839494                1031 ns/op          1363 B/op         24 allocs/op
+BenchmarkLogger_MixedLoggingWithError10Logs-16            577330               17757 ns/op         27060 B/op        453 allocs/op
 ```
 
 ## Next steps
@@ -111,9 +112,8 @@ BenchmarkLogger_MixedLoggingWithoutError-16     14674735               830.2 ns/
   * Steal liberally from better loggers
   * Wouldn't worry too much about improving `*WithError` performance
   * Minimized overhead for deferred logging when logs are discarded
-* Make it thread safe
-  * Need to convert the `map[context.Context][]*Entry` to a `sync.Map` or similar
-  * The `rand` source isn't safe either, either wrap in a lock or use something better
+* Check its thread safe
+  * Seems about right, but erm, haven't really checked
 * Test how bad out-of-order logs are to log aggregators
   * Eg: Datadog, Splunk, etc.
   * If they can handle it, `fullDefer` is basically only for file outputs

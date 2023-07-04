@@ -72,3 +72,44 @@ func BenchmarkLogger_MixedLoggingWithoutError(b *testing.B) {
 		}
 	})
 }
+
+func logStuff(logger *Logger, ctx context.Context) {
+	logger.WithContext(ctx).WithField("hello", "world").Debug("aaa")
+	logger.WithContext(ctx).Info("bbb")
+	logger.WithContext(ctx).Warn("ccc")
+
+	logger.WithContext(ctx).WithField("hello", "world").Debug("aaa")
+	logger.WithContext(ctx).Info("bbb")
+	logger.WithContext(ctx).Warn("ccc")
+	logger.WithContext(ctx).WithError(fmt.Errorf("an error")).Error("ddd")
+
+	logger.WithContext(ctx).WithField("hello", "world").Debug("aaa")
+	logger.WithContext(ctx).Info("bbb")
+	logger.WithContext(ctx).Warn("ccc")
+}
+
+func BenchmarkLogger_MixedLoggingWithError10Logs(b *testing.B) {
+	logger := NewLogger().
+		WithDeferredLevel(INFO).
+		WithImmediateLevel(WARN).
+		WithFullDefer(false).
+		WithOut(io.Discard)
+	err := fmt.Errorf("err")
+	ctx := context.Background()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			ctx1 := logger.StartTracking(ctx)
+			logStuff(logger, ctx1)
+
+			ctx2 := logger.StartTracking(ctx)
+			logStuff(logger, ctx2)
+
+			ctx3 := logger.StartTracking(ctx)
+			logStuff(logger, ctx3)
+
+			logger.EndTrackingWithError(ctx1, err)
+			logger.EndTrackingWithError(ctx2, err)
+			logger.EndTrackingWithError(ctx3, err)
+		}
+	})
+}
