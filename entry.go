@@ -85,7 +85,7 @@ func (e *Entry) Log(level Level, msg string) {
 	e.message = msg
 	e.level = level
 
-	if !e.shouldLog(level) {
+	if !e.logger.shouldImmediatelyLog(e.level) {
 		e.logger.deferEntry(e)
 		return
 	}
@@ -102,8 +102,4 @@ func (e *Entry) write() {
 	if _, err := e.logger.out.Write(b); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "failed to write to log, %v\n", err)
 	}
-}
-
-func (e *Entry) shouldLog(level Level) bool {
-	return e.logger.level <= level
 }
