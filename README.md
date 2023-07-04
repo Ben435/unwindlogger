@@ -3,22 +3,24 @@
 Reference implementation of a logger, that can unwind and
 log previously skipped messages, after encountering an error
 
+API heavily inspired by https://github.com/sirupsen/logrus
 
 ## Motivation
 
-In prod, 99% of the time, we don't need logs.
+In prod, we don't need 99% of the logs.
 
 So, we log at WARN or ERROR level.
-To keep costs low, and drive our alerts/monitors etc.
+To keep costs low, drive our alerts/monitors etc.
 
 However, when we _need_ logs, we want _all_ the logs.
 Eg: what business processes fired, what happened in the
 call before this error, etc.
-Typically, these are logged at INFO level, and so we can't
+Typically, these are logged at INFO level, so we can't
 see what happened.
 
 So, wouldn't it be nice if, when an error was encountered, we
 could see the INFO logs for the rest of the request?
+
 Including from before we knew an error would occur?
 
 That's what this logger intends to do
@@ -96,6 +98,30 @@ pkg: github.com/Ben435/unwindlogger
 cpu: AMD Ryzen 7 1700 Eight-Core Processor          
 BenchmarkLogger_ImmediateLogging-16             17948122               674.4 ns/op          1218 B/op         22 allocs/op
 BenchmarkLogger_DeferredLogging-16              16605958               729.1 ns/op          1226 B/op         23 allocs/op
-BenchmarkLogger_MixedLoggingWithError-16         8963803              1344 ns/op            2260 B/op         43 allocs/op
+BenchmarkLogger_MixedLoggingWithError-16         8963803               1344 ns/op           2260 B/op         43 allocs/op
 BenchmarkLogger_MixedLoggingWithoutError-16     14674735               830.2 ns/op          1355 B/op         26 allocs/op
 ```
+
+## Next steps
+
+* Ergonomics
+  * Allow for logging without a context
+  * Duplicate the entry similar to how logrus does, to allow for partial chaining
+* Improve performance
+  * Steal liberally from better loggers
+  * Wouldn't worry too much about improving `*WithError` performance
+  * Minimized overhead for deferred logging when logs are discarded
+* Make it thread safe
+  * Need to convert the `map[context.Context][]*Entry` to a `sync.Map` or similar
+  * The `rand` source isn't safe either, either wrap in a lock or use something better
+* Test how bad out-of-order logs are to log aggregators
+  * Eg: Datadog, Splunk, etc.
+  * If they can handle it, `fullDefer` is basically only for file outputs
+
+Alternate ideas:
+
+* Just wrap another logger
+  * This would just provide the "deferring" logic
+* Encase this in a plugin for other loggers
+  * Not sure if the plugins are powerful enough to do this tho
+  * Depends on the logger lib
