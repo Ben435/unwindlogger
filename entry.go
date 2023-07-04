@@ -100,5 +100,5 @@ func (e *Entry) write() {
 }
 
 func (e *Entry) shouldLog(level Level) bool {
-	return e.logger.level < level
+	return e.logger.level <= level
 }

@@ -22,6 +22,11 @@ func (l *Logger) WithLevel(level Level) *Logger {
 	return l
 }
 
+func (l *Logger) WithOut(out io.Writer) *Logger {
+	l.out = out
+	return l
+}
+
 func (l *Logger) WithField(key string, value interface{}) *Entry {
 	return NewEntry(l).WithField(key, value)
 }
