@@ -1,6 +1,7 @@
 package unwindlogger
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,15 +10,17 @@ import (
 
 type Entry struct {
 	logger  *Logger
+	ctx     context.Context
 	level   Level
 	message string
 	time    time.Time
 	fields  map[string]interface{}
 }
 
-func NewEntry(logger *Logger) *Entry {
+func NewEntry(logger *Logger, ctx context.Context) *Entry {
 	return &Entry{
 		logger:  logger,
+		ctx:     ctx,
 		level:   0,
 		message: "",
 		time:    time.Now(),
@@ -79,11 +82,13 @@ func (e *Entry) Error(msg string) {
 }
 
 func (e *Entry) Log(level Level, msg string) {
-	if !e.shouldLog(level) {
-		return
-	}
 	e.message = msg
 	e.level = level
+
+	if !e.shouldLog(level) {
+		e.logger.deferEntry(e)
+		return
+	}
 
 	e.write()
 }
