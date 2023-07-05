@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"sync"
+
+	queue "github.com/enriquebris/goconcurrentqueue"
 )
 
 type contextKeyType struct{}
@@ -17,7 +19,7 @@ type Logger struct {
 	out                 io.Writer
 	inflightTrackingIDs [][]*Entry
 	fullDefer           bool
-	trackingIDPool      *sync.Pool
+	trackingIDQueue     *queue.FIFO
 	lock                sync.Locker
 }
 
@@ -26,11 +28,11 @@ const initialTrackingEntriesCapacity = 10
 
 func NewLogger() *Logger {
 	inflightTrackingIDs := make([][]*Entry, initialIDs)
-	trackingIDPool := &sync.Pool{}
+	trackingIDQueue := queue.NewFIFO()
 
 	for i := 0; i < initialIDs; i++ {
 		inflightTrackingIDs[i] = make([]*Entry, 0, initialTrackingEntriesCapacity)
-		trackingIDPool.Put(i)
+		_ = trackingIDQueue.Enqueue(i)
 	}
 
 	return &Logger{
@@ -38,7 +40,7 @@ func NewLogger() *Logger {
 		deferredLevel:       INFO,
 		out:                 os.Stdout,
 		inflightTrackingIDs: inflightTrackingIDs,
-		trackingIDPool:      trackingIDPool,
+		trackingIDQueue:     trackingIDQueue,
 		fullDefer:           false,
 		lock:                &sync.Mutex{},
 	}
@@ -75,10 +77,14 @@ func (l *Logger) WithFullDefer(fullDefer bool) *Logger {
 func (l *Logger) StartTracking(ctx context.Context) context.Context {
 	l.lock.Lock()
 	defer l.lock.Unlock()
-	trackingID, ok := l.trackingIDPool.Get().(int)
-	if !ok {
+
+	var trackingID int
+	if l.trackingIDQueue.GetLen() <= 0 {
 		trackingID = len(l.inflightTrackingIDs)
 		l.inflightTrackingIDs = append(l.inflightTrackingIDs, []*Entry{})
+	} else {
+		id, _ := l.trackingIDQueue.Dequeue()
+		trackingID = id.(int)
 	}
 
 	return context.WithValue(ctx, contextKey, trackingID)
@@ -115,7 +121,7 @@ func (l *Logger) EndTrackingWithError(ctx context.Context, err error) {
 	}
 	// Cleanup
 	l.inflightTrackingIDs[trackingID] = l.inflightTrackingIDs[trackingID][:0]
-	l.trackingIDPool.Put(trackingID)
+	_ = l.trackingIDQueue.Enqueue(trackingID)
 }
 
 func (l *Logger) WithContext(ctx context.Context) *Entry {
